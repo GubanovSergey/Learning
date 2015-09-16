@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/*
+ * Ок, хорошо. Ровно такое решение и предполагалось.
+ */
+
 int main() {
     pid_t pid = 0;
-    int i = 0, N = 5;
+    int i = 0, N = 3;
     int status = -1;
     for (i = 0; i < N + 1; i++) {
         if (pid > 0) {
