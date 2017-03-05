@@ -8,7 +8,7 @@ std::ostream & operator << (std::ostream & os, const BigUint & which) {
     auto iter = which._data.crbegin();
     std::string str =  std::to_string(*(iter++));
     for (; iter != last; iter++) {
-        unsigned long long lead_r;
+        DataType lead_r;
         if (*iter)
             lead_r = (which.radix - 1) / (*iter);
         else
@@ -82,7 +82,7 @@ BigUint & BigUint::operator += (const BigUint & rhs) {
     return *this;
 }
 
-BigUint & BigUint::operator *= (const unsigned long long by) {
+BigUint & BigUint::operator *= (const DataType by) {
     //length of cmds_stack will be no more than 100
     enum class Cmd {
         mult10 = 0, mult2, add, add5
@@ -92,7 +92,7 @@ BigUint & BigUint::operator *= (const unsigned long long by) {
     orig_add5 += orig_add5;
     orig_add5 += orig_mult1;
 
-    unsigned long long rem_mult = by;
+    DataType rem_mult = by;
     std::vector <Cmd> cmds_stack = {};
 
     if (*this == 0 || by == 0) {
@@ -259,7 +259,7 @@ BigUint & BigUint::operator -= (const BigUint & rhs){
     int rem =  0;
 
     for (int i = 0; i < len2; i++) {
-        unsigned long long calc = radix + _data[i] - rhs._data[i] - rem;
+        DataType calc = radix + _data[i] - rhs._data[i] - rem;
         if (calc < radix) {
             rem = 1;
             _data[i] = calc;
@@ -271,7 +271,7 @@ BigUint & BigUint::operator -= (const BigUint & rhs){
         assert(_data[i] < radix);
     }
     if (len1 > len2) {
-        unsigned long long calc = 0;
+        DataType calc = 0;
         for (int i = len2; i < len1 && rem; i++) {
             //std::cout << "Here[-]" << std::endl;
             calc = radix + _data[i] - rem;
@@ -291,7 +291,7 @@ BigUint & BigUint::operator -= (const BigUint & rhs){
     return *this;
 }
 
-const BigUint operator +(unsigned long long num, const BigUint & bigInt) {
+const BigUint operator +(DataType num, const BigUint & bigInt) {
   return (bigInt + num);
 }
 
@@ -312,9 +312,9 @@ const BigUint & BigUint::mult10n(int pw) { //may be less than zero
     pw %= rad_pw;
 
     if (pw) {
-      unsigned long long rem = 0;
+      DataType rem = 0;
       unsigned len = _data.size();
-      unsigned long long divider = pow (10., pw);
+      DataType divider = pow (10., pw);
 
       unsigned i = 0;
       for (; i < len - 1; i++) {
@@ -329,10 +329,10 @@ const BigUint & BigUint::mult10n(int pw) { //may be less than zero
     pw %= rad_pw;
 
     if (pw) {
-      unsigned long long rem = 0, rem_new = 0;
+      DataType rem = 0, rem_new = 0;
       unsigned len = _data.size();
-      unsigned long long mult = pow (10., pw);
-      unsigned long long dec_mask = pow (10., rad_pw - pw);
+      DataType mult = pow (10., pw);
+      DataType dec_mask = pow (10., rad_pw - pw);
 
       for (unsigned i = 0; i < len; i++) {
         assert(_data[i] < radix);
@@ -397,7 +397,7 @@ std::array<BigUint, 2> BigUint::separate(const unsigned decimal) const {  //0 re
     unsigned rem_decimal = decimal;
     unsigned wh_blocks_lower = rem_decimal / 18;
     rem_decimal %= 18;
-    unsigned long long gr_part_lower = _data[wh_blocks_lower] % (unsigned long long)pow(10, rem_decimal);
+    DataType gr_part_lower = _data[wh_blocks_lower] % (DataType)pow(10, rem_decimal);
 
     BigUint upper = *this, lower = {gr_part_lower};
     upper.mult10n(-decimal);

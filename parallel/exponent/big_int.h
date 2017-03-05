@@ -8,26 +8,36 @@
 #include <cassert>
 
 class BigUint {
-  std::vector<unsigned long long> _data;
+public:
+    using DataType = unsigned long long;
+private:
+    std::vector<DataType> _data;
 
 public:
+    using DataType = unsigned long long;
   //const unsigned long long radix = ULLONG_MAX / 2 + 1;
-    static const unsigned long long radix = 1e+18;  //!!!hardcoded in mult10n and exponent
+    static const DataType radix = 1e+18;  //!!!hardcoded in mult10n and exponent and separate
 
     BigUint():
         _data({0}) {}
-    BigUint(unsigned long long from):
+    BigUint(DataType from):
         _data({from % radix}) {
-        unsigned long long next = from / radix;
+        DataType next = from / radix;
         if (next)
             _data.push_back(next);
     }
+    BigUint(std::vector<DataType> && from):
+        _data(from) {}
     BigUint(const BigUint & from):
         _data(from._data) {}
 
     BigUint(BigUint && from):
         _data(std::move(from._data)) {
         //printf("Move cons");
+    }
+
+    std::vector<DataType> cp_data () {
+        return _data;
     }
 
     BigUint & operator = (const BigUint & from) {
@@ -56,7 +66,7 @@ public:
     std::array<BigUint, 2> separate(unsigned decimal) const;
 
     BigUint & operator += (const BigUint & rhs);
-    BigUint & operator *= (const unsigned long long by);
+    BigUint & operator *= (const DataType by);
     BigUint & operator *= (const BigUint & by);
     BigUint & naive_mult (const BigUint & by);
     static const BigUint karatsuba_mult(const std::array<BigUint, 2> & mults, int depth);
@@ -65,7 +75,7 @@ public:
     const BigUint & mult10n(int pw);
     unsigned exponent(int flag = 0) const {
         unsigned result = (_data.size() - 1) * 18;
-        unsigned long long grst_block = _data.back();
+        DataType grst_block = _data.back();
         if (flag) {
             std::cout << "[DBG] Size = " << _data.size() << std::endl;
             std::cout << "Grst block = " << grst_block << std::endl;
@@ -87,7 +97,7 @@ public:
             return 1;
         else {
             int num_block = len1 - 1;
-            unsigned long long v1, v2;
+            DataType v1, v2;
             while ((num_block + 1) && _data[num_block] == rhs._data[num_block])
                 num_block--;
             //std::cout << "var1[grst] = " << v1 << "var2[grst] = " << v2 << std::endl;
@@ -100,22 +110,22 @@ public:
         }
     }
     bool operator < (const BigUint & rhs) const {
-    return cmp(rhs) < 0;
+        return cmp(rhs) < 0;
     }
     bool operator <= (const BigUint & rhs) const {
-    return cmp(rhs) <= 0;
+        return cmp(rhs) <= 0;
     }
     bool operator > (const BigUint & rhs) const {
-    return cmp(rhs) > 0;
+        return cmp(rhs) > 0;
     }
     bool operator >= (const BigUint & rhs) const {
-    return cmp(rhs) >= 0;
+        return cmp(rhs) >= 0;
     }
     bool operator == (const BigUint & rhs) const {
-    return cmp(rhs) == 0;
+        return cmp(rhs) == 0;
     }
     bool operator != (const BigUint & rhs) const {
-    return cmp(rhs) != 0;
+        return cmp(rhs) != 0;
     }
 
     const BigUint operator + (const BigUint & rhs) const {  //must return a new object instead of reference ought to be deleted
@@ -127,5 +137,5 @@ public:
     friend std::ostream & operator << (std::ostream & os, const BigUint & which);
 };
 
-const BigUint operator +(unsigned long long num, const BigUint & bigInt);
+const BigUint operator +(BigUint::DataType num, const BigUint & bigInt);
 #endif //_BIG_INT_INCL_
