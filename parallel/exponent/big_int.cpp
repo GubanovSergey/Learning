@@ -4,47 +4,46 @@
 #include <cmath>
 
 std::ostream & operator << (std::ostream & os, const BigUint & which) {
-  auto last = which._data.crend();
-  auto iter = which._data.crbegin();
-  std::string str =  std::to_string(*(iter++));
-  for (; iter != last; iter++) {
-     unsigned long long lead_r;
-     if (*iter)
-       lead_r = (which.radix - 1) / (*iter);
-     else
-       lead_r = (which.radix - 1);
-     while (lead_r > 9) {
-       str += "0";
-       lead_r /= 10;
-     }
-     str += std::to_string(*iter);
-  }
+    auto last = which._data.crend();
+    auto iter = which._data.crbegin();
+    std::string str =  std::to_string(*(iter++));
+    for (; iter != last; iter++) {
+        unsigned long long lead_r;
+        if (*iter)
+            lead_r = (which.radix - 1) / (*iter);
+        else
+            lead_r = (which.radix - 1);
+        while (lead_r > 9) {
+            str += "0";
+            lead_r /= 10;
+        }
+        str += std::to_string(*iter);
+    }
 
-  auto str_iter = str.begin();
-  for (; *str_iter == '0'; str_iter++);
-  if (str_iter == str.end())
-    str_iter -= 1;
-  str.erase(str.begin(), str_iter);
+    /*auto str_iter = str.begin();
+    for (; *str_iter == '0'; str_iter++);
+    if (str_iter == str.end())
+        str_iter -= 1;
+    str.erase(str.begin(), str_iter);*/
 
-  os << str;
+    os << str;
 
-  /*for (auto elem: which._data)
-    std::cout << "\n[DBG] " << elem;*/
-  return os;
+    /*for (auto elem: which._data)
+        std::cout << "\n[DBG] " << elem << " ";*/
+    return os;
 }
 
 BigUint & BigUint::operator += (const BigUint & rhs) {
-    int len1 = num_blocks(), len2 = rhs.num_blocks();
-    int to_len = (len1 > len2) ? len2 : len1;
-    int i = 0;
+    unsigned len1 = _data.size(), len2 = rhs._data.size();
+    unsigned to_len = (len1 > len2) ? len2 : len1;
+    unsigned i = 0;
     int rem =  0;
-    BigUint calc = *this;
 
     while (i < to_len) {
-        calc._data[i] += rhs._data[i] + rem;
-        if (calc._data[i] >= radix) {
+        _data[i] += rhs._data[i] + rem;
+        if (_data[i] >= radix) {
               rem = 1;
-              calc._data[i] %= radix;
+              _data[i] %= radix;
         }
         else {
             rem = 0;
@@ -55,18 +54,16 @@ BigUint & BigUint::operator += (const BigUint & rhs) {
     if (len1 != len2) {
         //std::cout << "Here" << std::endl;
         if (rem) {
-            int upper = (len1 > len2) ? len1 : len2;
+            unsigned upper = (len1 > len2) ? len1 : len2;
             for (; i < upper && rem; i++) {
                 //std::cout << "Here[3]" << std::endl;
-                if (len1 > len2) {
-                    calc._data[i] += rem;
-                }
-                else {
-                    calc._data.push_back(rhs._data[i] + rem);
-                }
-                if (calc._data[i] >= radix) {
+                if (len1 > len2)
+                    _data[i] += rem;
+                else
+                    _data.push_back(rhs._data[i] + rem);
+                if (_data[i] >= radix) {
                     rem = 1;
-                    calc._data[i] %= radix;
+                    _data[i] %= radix;
                 }
                 else {
                     rem = 0;
@@ -75,56 +72,147 @@ BigUint & BigUint::operator += (const BigUint & rhs) {
         }
         while (i < len2) {
             //std::cout << "Here[1.1]" << std::endl;
-            calc._data.push_back (rhs._data[i++]);
+            _data.push_back(rhs._data[i++]);
         }
     }
     if (rem == 1) {
         //std::cout << "Here[/]" << std::endl;
-        calc._data.push_back(rem);
+        _data.push_back(rem);
     }
-    *this = calc;
     return *this;
 }
 
 BigUint & BigUint::operator *= (const unsigned long long by) {
     //length of cmds_stack will be no more than 100
-  enum class Cmd {
-    add = 0, mult2
-  };
-  BigUint orig_mult1 = *this;
-  unsigned long long rem_mult = by;
-  std::vector <Cmd> cmds_stack = {};
+    enum class Cmd {
+        mult10 = 0, mult2, add, add5
+    };
+    BigUint orig_mult1 = *this, orig_add5 = *this;
+    orig_add5 += *this;
+    orig_add5 += orig_add5;
+    orig_add5 += orig_mult1;
 
-  //printf("Multiply by %u, size is %llu\n", rem_mult, cmds_stack.size());
-  while (rem_mult != 1) {
-        if (rem_mult % 2 == 0) {
+    unsigned long long rem_mult = by;
+    std::vector <Cmd> cmds_stack = {};
+
+    if (*this == 0 || by == 0) {
+        _data.clear();
+        _data.push_back(0);
+        return *this;
+    }
+
+    //printf("Multiply by %u, size is %llu\n", rem_mult, cmds_stack.size());
+    //printf(":");
+    while (rem_mult != 0) {
+        if (rem_mult % 10 == 0) {
+            cmds_stack.push_back(Cmd::mult10);
+            rem_mult /= 10;
+            //printf("*");
+        }
+        else if (rem_mult % 2 == 0) {
             cmds_stack.push_back(Cmd::mult2);
             rem_mult /= 2;
+        }
+        else if (rem_mult % 10 >= 5) {
+            cmds_stack.push_back(Cmd::add5);
+            rem_mult -= 5;
+            //printf("5");
         }
         else {
             cmds_stack.push_back(Cmd::add);
             rem_mult--;
+            //printf("+");
         }
-        //printf("New rem_mult %u\n", rem_mult);
-  }
+    }
   //printf("Length of commands stack is %llu\n", cmds_stack.size());
-  for (auto i = cmds_stack.crbegin(); i != cmds_stack.crend(); ++i) {
-    if (*i == Cmd::mult2)
-      *this += *this;
-    else
-      *this += orig_mult1;
+    BigUint result = 0;
+    for (auto i = cmds_stack.crbegin(); i != cmds_stack.crend(); ++i) {
+        if (*i == Cmd::mult10)
+            result.mult10n(1);
+        else if (*i == Cmd::mult2)
+            result += result;
+        else if (*i == Cmd::add5)
+            result += orig_add5;
+        else
+            result += orig_mult1;
     //std::cout << "New number is " << *this << std::endl;
-  }
-  return *this;
+    }
+    *this = std::move(result);
+    return *this;
+}
+
+const BigUint BigUint::karatsuba_mult(const std::array <BigUint, 2> & mults, int depth = 0) {
+    //std::cout << "Arguments:\n" << mults[0] << "\n\nAND\n\n" << mults[1] << "\n" << std::endl;
+    if (depth > 99) {
+        if (depth > 102) {
+            exit(-1);
+        }
+        std::cout << "Depth " << depth << std::endl;
+        std::cout << "Arguments:\n" << mults[0] << "\n\nAND\n\n" << mults[1] << "\n" << std::endl;
+    }
+    int grst_num = (mults[0] > mults[1]) ? 0 : 1;
+    int lwst_num = (grst_num + 1) % 2;
+
+    if (mults[lwst_num]._data.size() < 1) {
+        BigUint answer = mults[grst_num];
+        //std::cout << "!!!!!!!" << std::endl;
+        return (answer *= mults[lwst_num]._data[0]);
+    }
+    else if (mults[lwst_num]._data.size() < 21) {
+        BigUint answer = mults[grst_num];
+        //std::cout << "Here" << std::endl;
+        return (answer.naive_mult(mults[lwst_num]));
+    }
+
+    int separate_by = (mults[lwst_num].exponent() + 1) / 2;
+    auto A = std::move(mults[grst_num].separate(separate_by));
+    if (depth > 99 && depth < 103) {
+        std::cout << "Separated by " << separate_by << "\n" << A[0] << "\nAND\n" << A[1] << std::endl;
+        std::cout << "Where exponent equals " << mults[lwst_num].exponent(1) << std::endl;
+    }
+
+    auto B = std::move(mults[lwst_num].separate(separate_by));
+    if (depth > 99 && depth < 103)
+        std::cout << "Separated:\n" << B[0] << "\nAND\n" << B[1] << std::endl;
+
+    //!!!may be should think better about separating
+    auto Grst_mult = std::move(karatsuba_mult({A[0], B[0]}, depth + 1));
+    Grst_mult._data.shrink_to_fit();
+    auto Lwst_mult = std::move(karatsuba_mult({A[1], B[1]}, depth + 1));
+    Lwst_mult._data.shrink_to_fit();
+
+    auto D = std::move(karatsuba_mult({A[0] + A[1], B[0] + B[1]}, depth + 1));
+    //std::cout << "Grst_mult equals " << Grst_mult << "\n" << std::endl;
+    //std::cout << "Lwst_mult equals " << Lwst_mult << "\n" << std::endl;
+    //std::cout << "D is " << D << std::endl;
+
+    D -= Grst_mult; D -= Lwst_mult;
+    return Grst_mult.mult10n(separate_by * 2) + D.mult10n(separate_by) + Lwst_mult;
 }
 
 BigUint & BigUint::operator *= (const BigUint & by) {
-    std::cout << "Long multiplication" << std::endl;
+    std::array<BigUint, 2> mults = {*this, by};
+    std::cout << "KARATSUBA!)" << std::endl;
+    std::cout << "10th degrees are " << (*this).exponent() << " and " << by.exponent() << std::endl;
+    *this = std::move(karatsuba_mult(mults));
+    return *this;
+}
+
+//BigUint & BigUint::operator *= (const BigUint & by) {
+BigUint & BigUint::naive_mult (const BigUint & by) {
+    //std::cout << "Long multiplication" << std::endl;
 
     enum class Cmd {
         mult10 = 0,
         add1 = 1, add2, add3, add4, add5, add6, add7, add8, add9,
     };
+
+    if (*this == 0 || by == 0) {
+        _data.clear();
+        _data.push_back(0);
+        return *this;
+    }
+
     BigUint orig_mult1 = *this, rem_by = by;
     BigUint orig_addx[9];
 
@@ -167,7 +255,7 @@ BigUint & BigUint::operator -= (const BigUint & rhs){
         throw std::underflow_error("Minuend can't be less than subtrahend as integer is unsigned");
     }
 
-    int len1 = num_blocks(), len2 = rhs.num_blocks();
+    int len1 = _data.size(), len2 = rhs._data.size();
     int rem =  0;
 
     for (int i = 0; i < len2; i++) {
@@ -199,6 +287,7 @@ BigUint & BigUint::operator -= (const BigUint & rhs){
         }
     }
     assert(rem == 0);
+    clear_zero_blocks();
     return *this;
 }
 
@@ -206,7 +295,7 @@ const BigUint operator +(unsigned long long num, const BigUint & bigInt) {
   return (bigInt + num);
 }
 
-const BigUint & BigUint::mult10n(short pw) { //may be less than zero
+const BigUint & BigUint::mult10n(int pw) { //may be less than zero
   int dir = !!(pw > 0) * 2 - 1;
   const int rad_pw = 18;
   pw *= dir;
@@ -214,7 +303,7 @@ const BigUint & BigUint::mult10n(short pw) { //may be less than zero
   unsigned blocks_shift = (pw / rad_pw);
   //std::cout << "blocks_shift is " << blocks_shift << std::endl;
 
-  if (dir == -1 && blocks_shift >= num_blocks()) {
+  if (dir == -1 && blocks_shift >= _data.size()) {
     _data = {0};
     return *this;
   }
@@ -224,10 +313,10 @@ const BigUint & BigUint::mult10n(short pw) { //may be less than zero
 
     if (pw) {
       unsigned long long rem = 0;
-      int len = num_blocks();
+      unsigned len = _data.size();
       unsigned long long divider = pow (10., pw);
 
-      int i = 0;
+      unsigned i = 0;
       for (; i < len - 1; i++) {
         rem = _data[i+1] % divider;
         _data[i] = _data[i] / divider + rem * (radix / divider);
@@ -241,11 +330,11 @@ const BigUint & BigUint::mult10n(short pw) { //may be less than zero
 
     if (pw) {
       unsigned long long rem = 0, rem_new = 0;
-      int len = num_blocks();
+      unsigned len = _data.size();
       unsigned long long mult = pow (10., pw);
       unsigned long long dec_mask = pow (10., rad_pw - pw);
 
-      for (int i = 0; i < len; i++) {
+      for (unsigned i = 0; i < len; i++) {
         assert(_data[i] < radix);
         rem_new = _data[i] / dec_mask;
         //std::cout << "In mind " << rem_new << std::endl;
@@ -260,38 +349,45 @@ const BigUint & BigUint::mult10n(short pw) { //may be less than zero
     }
     _data.insert(_data.begin(), blocks_shift, 0);
   }
+  clear_zero_blocks();
   return *this;
 }
 
 
 BigUint & BigUint::operator /= (const BigUint & rhs) {
-  if (*this < rhs) {
-      _data = {0};
-      return (*this);
-  }
-  BigUint divident(*this), divider(rhs), result(0);
-  int pow10 = divident.exponent() - divider.exponent();
-  divider.mult10n(pow10);  //transform divider to the same exponent
-  //std::cout << "Transform by " << pow10 << std::endl;
+    //std::cout << "Arguments:\n" << *this << "\n\nAND\n\n" << rhs << "\n" << std::endl;
 
-  int digit = 0;
-  while (pow10 >= 0) {
-    digit = 0;
-    while (divider <= divident) {
-      divident -= divider;
-      digit ++;
+    if (*this < rhs) {
+        _data.clear();
+        _data.push_back(0);
+        return (*this);
     }
-    //std::cout << "Digit: " << digit << std::endl;
-    result+= BigUint(digit).mult10n(pow10);
-    //std::cout << "Cur result: " << result << std::endl;
-    //std::cout << "Cur divident: " << divident << '\n' << std::endl;
 
-    divider.mult10n(-1);
-    pow10--;
-  }
+    else if (rhs == 0) {
+        throw std::invalid_argument("Can't divide by zero!");
+    }
+    BigUint divident(*this), divider(rhs), result(0);
+    int pow10 = divident.exponent() - divider.exponent();
+    divider.mult10n(pow10);  //transform divider to the same exponent
+    //std::cout << "Transform by " << pow10 << std::endl;
 
-  *this = result;
-  return *this;
+    int digit = 0;
+    while (pow10 >= 0) {
+        digit = 0;
+        while (divider <= divident) {
+            divident -= divider;
+            digit ++;
+        }
+        //std::cout << "Digit: " << digit << std::endl;
+        //std::cout << "Cur divider: " << divider << '\n' << std::endl;
+        //std::cout << "Cur result: " << result << std::endl;
+        result+= BigUint(digit).mult10n(pow10);
+
+        divider.mult10n(-1);
+        pow10--;
+    }
+    *this = std::move(result);
+    return *this;
 }
 
 std::array<BigUint, 2> BigUint::separate(const unsigned decimal) const {  //0 respects the case when all number is attributed to the first part of big integer
@@ -306,5 +402,6 @@ std::array<BigUint, 2> BigUint::separate(const unsigned decimal) const {  //0 re
     BigUint upper = *this, lower = {gr_part_lower};
     upper.mult10n(-decimal);
     lower._data.insert(lower._data.begin(), _data.begin(), _data.begin() + wh_blocks_lower);
+    lower.clear_zero_blocks();
     return {upper, lower};
 }

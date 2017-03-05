@@ -26,8 +26,8 @@ public:
         _data(from._data) {}
 
     BigUint(BigUint && from):
-        _data(from._data) {
-        printf("Move cons");
+        _data(std::move(from._data)) {
+        //printf("Move cons");
     }
 
     BigUint & operator = (const BigUint & from) {
@@ -36,8 +36,8 @@ public:
     }
 
     BigUint & operator = (BigUint && from) {
-        _data = from._data;
-        printf("Move:)");
+        _data = std::move(from._data);
+        //printf("Move:)");
         return *this;
     }
 
@@ -45,23 +45,31 @@ public:
     //vector destoyes automatically
     }
 
-    unsigned num_blocks() const{
-        int res = _data.size();
-        while (res > 1 && _data[res - 1] == 0)
-            res--;
-        return res;
+    void clear_zero_blocks() {
+        unsigned num_bl = _data.size();
+        while (num_bl > 1 && _data[num_bl - 1] == 0) {
+            num_bl--;
+            _data.pop_back();
+        }
     }
+
     std::array<BigUint, 2> separate(unsigned decimal) const;
 
     BigUint & operator += (const BigUint & rhs);
     BigUint & operator *= (const unsigned long long by);
     BigUint & operator *= (const BigUint & by);
+    BigUint & naive_mult (const BigUint & by);
+    static const BigUint karatsuba_mult(const std::array<BigUint, 2> & mults, int depth);
     BigUint & operator -= (const BigUint & rhs); //throws underflow_error
     BigUint & operator /= (const BigUint & rhs);
-    const BigUint & mult10n(short pw);
-    unsigned short exponent() const {
-        unsigned short result = (num_blocks() - 1) * 18;
-        unsigned long long grst_block = _data[num_blocks() - 1];
+    const BigUint & mult10n(int pw);
+    unsigned exponent(int flag = 0) const {
+        unsigned result = (_data.size() - 1) * 18;
+        unsigned long long grst_block = _data.back();
+        if (flag) {
+            std::cout << "[DBG] Size = " << _data.size() << std::endl;
+            std::cout << "Grst block = " << grst_block << std::endl;
+        }
         while (grst_block > 0) {
             grst_block /= 10;
             result++;
@@ -70,8 +78,9 @@ public:
     }
 
     int cmp(const BigUint & rhs) const {
-        int len1 = num_blocks(), len2 = rhs.num_blocks();
+        int len1 = _data.size(), len2 = rhs._data.size();
 
+        assert(len1 && len2);
         if (len1 < len2)
             return -1;
         else if (len1 > len2)
