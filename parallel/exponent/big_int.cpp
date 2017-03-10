@@ -192,7 +192,7 @@ const BigUint BigUint::karatsuba_mult(const std::array <BigUint, 2> & mults, int
 
 BigUint & BigUint::operator *= (const BigUint & by) {
     std::array<BigUint, 2> mults = {*this, by};
-    std::cout << "KARATSUBA!)" << std::endl;
+    //std::cout << "KARATSUBA!)" << std::endl;
     std::cout << "10th degrees are " << (*this).exponent() << " and " << by.exponent() << std::endl;
     *this = std::move(karatsuba_mult(mults));
     return *this;

@@ -5,16 +5,16 @@
 #include <mpi.h>
 #include <cstdlib>
 
-bool isSender (int rank, int level) {
+/*bool isSender (int rank, int level) {
     return ((rank - (1 << (level - 1) - 1)) & (1 << level - 1)) == 0;
 }
 
 bool isRecver (int rank, int level) {
     int tmp = (1 << level - 1);
     return ((rank - tmp) & tmp) == 0;
-}
+}*/
 
-void send_BigUint(BigUint & which, int to, std::fstream & dump) {
+void send_BigUint(BigUint & which, int to, std::ofstream & dump) {
     auto send_buf = std::move(which.cp_data());
     int nblocks = send_buf.size();
     //SEND denom
@@ -22,12 +22,13 @@ void send_BigUint(BigUint & which, int to, std::fstream & dump) {
     double timer = MPI_Wtime();
     MPI_Send(&nblocks, 1, MPI_INT, to, 0, MPI_COMM_WORLD);
     //f_dump << "[DBG] Num blocks to send " << nblocks << std::endl;
-    MPI_Send(&denom_buf.front(), nblocks, MPI_UNSIGNED_LONG_LONG, to, 0, MPI_COMM_WORLD);
+    MPI_Send(&send_buf.front(), nblocks, MPI_UNSIGNED_LONG_LONG, to, 0, MPI_COMM_WORLD);
     dump << "Sent with " << MPI_Wtime() - timer << "delay" << std::endl;
 }
 
-BigUint recv_BigUint(int from, MPI_Status * s, std::fstream & dump) {
+BigUint recv_BigUint(int from, MPI_Status * s, std::ofstream & dump) {
     double timer = MPI_Wtime();
+    int nblocks;
     MPI_Recv(&nblocks, 1, MPI_INT, from, 0, MPI_COMM_WORLD, s);
     //f_dump << "[DBG] Num blocks to receive " << nblocks << std::endl;
 
@@ -35,7 +36,7 @@ BigUint recv_BigUint(int from, MPI_Status * s, std::fstream & dump) {
     assert(sizeof(BigUint::DataType) == sizeof(MPI_UNSIGNED_LONG_LONG));
     //f_dump << "[DBG] Container resized to " << denom_mult_buf.capacity() << " elements" << std::endl;
     MPI_Recv(&recv_buf.front(), nblocks, MPI_UNSIGNED_LONG_LONG, from, 0, MPI_COMM_WORLD, s);
-    f_dump << "Got with delay " << MPI_Wtime() - timer << std::endl;
+    dump << "Got with delay " << MPI_Wtime() - timer << std::endl;
     return BigUint(std::move(recv_buf));
 }
 
@@ -62,7 +63,7 @@ int main(int argc, char * argv[]) {
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
     std::ofstream f_dump("dump_" + std::to_string(rank) + ".txt");
-    //std::ofstream f_ans("exp.txt");
+    std::ofstream f_ans("exp.txt");
 
     double local_timer = MPI_Wtime();
     int my_n = (rank == proc_amnt - 1) ? prec : (prec / proc_amnt * (rank + 1));
@@ -79,14 +80,10 @@ int main(int argc, char * argv[]) {
 
     BigUint denom(cur_addent);
 
+    MPI_Status stat;
     if (rank > 0) {
         double mult_timer = MPI_Wtime();
-        MPI_Status stat;
         denom *= (prev_n + 1);
-
-        int nblocks;
-        //RECEIVE denom_mult
-        //MPI_Recv (buf, size, MPI_CHAR, rank - 1, 0, MPI_COMM_WORLD, &stat);
         f_dump << "Wait for receive " << " " << MPI_Wtime() - local_timer << std::endl;
 
         BigUint denom_mult = std::move(recv_BigUint(rank - 1, &stat, f_dump));
@@ -96,7 +93,7 @@ int main(int argc, char * argv[]) {
         f_dump << "LONG mult time " << MPI_Wtime() - mult_timer << std::endl;
     }
     if (rank + 1 < proc_amnt) {
-        dump << "Wait to send " << MPI_Wtime() - local_timer << std::endl;
+        f_dump << "Wait to send " << MPI_Wtime() - local_timer << std::endl;
         send_BigUint(denom, rank + 1, f_dump);
     }
     f_dump << "[DBG] Sum " << sum << std::endl;
@@ -113,14 +110,19 @@ int main(int argc, char * argv[]) {
     auto l_res = local_res.separate(n_digits + proc_amnt / 2);
     f_dump << "Local ans = " << l_res[0] << "." << l_res[1] <<
     "\n[NOTE]Fraction part may have leading nils" << std::endl;
+    if (rank > 0) {
+        send_BigUint(local_res, 0, f_dump);
+    }
+    else {
+        BigUint global_sum = std::move(local_res);
+        for (int i = 1; i < proc_amnt; i++) {
+            global_sum += recv_BigUint(i, &stat, f_dump);
+        }
+        auto ans = global_sum.separate(n_digits + proc_amnt / 2);
+        ans[0] += 1;
 
-    //TODO proc_amnt != pow(2)
-    int level = 1;
-    while (!isSender(rank, level)) {
-        MPI_Status stat;
-        assert(isRecver(rank, level));
-        BigUint other_sum = std::move(recv_BigUint(, &stat, f_dump));
-        local_res += other_sum;
+        f_dump << "Answer = " << ans[0] << "." << ans[1] << std::endl;
+        f_ans << "Answer = " << ans[0] << "." << ans[1] << std::endl;
     }
 
 
