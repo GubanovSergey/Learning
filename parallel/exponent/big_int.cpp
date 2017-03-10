@@ -8,7 +8,7 @@ std::ostream & operator << (std::ostream & os, const BigUint & which) {
     auto iter = which._data.crbegin();
     std::string str =  std::to_string(*(iter++));
     for (; iter != last; iter++) {
-        DataType lead_r;
+        BigUint::DataType lead_r;
         if (*iter)
             lead_r = (which.radix - 1) / (*iter);
         else
@@ -291,7 +291,7 @@ BigUint & BigUint::operator -= (const BigUint & rhs){
     return *this;
 }
 
-const BigUint operator +(DataType num, const BigUint & bigInt) {
+const BigUint operator +(BigUint::DataType num, const BigUint & bigInt) {
   return (bigInt + num);
 }
 

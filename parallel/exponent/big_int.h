@@ -9,12 +9,11 @@
 
 class BigUint {
 public:
-    using DataType = unsigned long long;
+    using DataType = unsigned long long; //!!!hardcoded in MPI
 private:
     std::vector<DataType> _data;
 
 public:
-    using DataType = unsigned long long;
   //const unsigned long long radix = ULLONG_MAX / 2 + 1;
     static const DataType radix = 1e+18;  //!!!hardcoded in mult10n and exponent and separate
 
